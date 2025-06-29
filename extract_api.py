@@ -9,6 +9,10 @@ import sys
 import json
 import os
 
+# 현재 스크립트 파일의 디렉토리를 Python 경로에 추가
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, script_dir)
+
 # 인코딩 설정
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
