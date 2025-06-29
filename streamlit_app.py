@@ -87,12 +87,6 @@ def main():
         help="유튜브 동영상 URL을 붙여넣으세요"
     )
     
-    # 음성 인식 옵션
-    use_speech = st.checkbox(
-        "🎤 음성 인식 모드",
-        help="자막이 없는 영상의 경우 음성을 인식하여 텍스트로 변환합니다 (처리 시간이 더 오래 걸릴 수 있습니다)"
-    )
-    
     # 추출 버튼
     if st.button("📄 자막 추출", type="primary"):
         if not url:
@@ -109,7 +103,6 @@ def main():
             try:
                 # 텍스트 추출 실행
                 extractor = YouTubeTextExtractor()
-                extractor.use_speech_recognition = use_speech
                 
                 success = extractor.process_youtube_url(url)
                 
@@ -168,6 +161,10 @@ def main():
                     for reason in error_reasons:
                         st.write(f"• {reason}")
                     
+                    # 에러 세부정보가 있으면 표시
+                    if hasattr(extractor, 'error_details') and extractor.error_details:
+                        st.write(f"**세부 오류:** {extractor.error_details}")
+                    
                     st.markdown('</div>', unsafe_allow_html=True)
                     
             except Exception as e:
@@ -180,9 +177,8 @@ def main():
         st.markdown("""
         ### 📝 사용 방법
         1. **유튜브 URL 입력**: 텍스트를 추출할 영상의 URL을 붙여넣으세요
-        2. **옵션 선택**: 필요시 음성 인식 모드를 활성화하세요
-        3. **자막 추출**: 버튼을 클릭하여 텍스트를 추출하세요
-        4. **결과 복사**: 추출된 텍스트를 복사하거나 파일로 다운로드하세요
+        2. **자막 추출**: 버튼을 클릭하여 텍스트를 추출하세요
+        3. **결과 복사**: 추출된 텍스트를 복사하거나 파일로 다운로드하세요
         
         ### ✅ 잘 작동하는 영상
         • 자막이 활성화된 영상
@@ -191,7 +187,7 @@ def main():
         
         ### ⚠️ 제한사항
         • 비공개 또는 삭제된 영상
-        • 자막이 없는 영상 (음성 인식 모드 필요)
+        • 자막이 없는 영상
         • 매우 긴 영상 (처리 시간 오래 걸림)
         
         ### 🧪 테스트 URL
