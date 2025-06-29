@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-YouTube 자막 추출기 - 안정적인 버전
+YouTube 자막 추출기 - 초간단 버전
 """
 
 import re
 from youtube_transcript_api import YouTubeTranscriptApi
-import requests
 
 
 class YouTubeTextExtractor:
@@ -17,136 +16,71 @@ class YouTubeTextExtractor:
         
     def extract_video_id(self, url):
         """유튜브 URL에서 비디오 ID 추출"""
-        patterns = [
-            r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)',
-            r'youtube\.com\/live\/([^&\n?#]+)',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match:
-                return match.group(1)
-        
-        return None
+        match = re.search(r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)', url)
+        return match.group(1) if match else None
     
     def get_video_info(self, video_id):
-        """비디오 정보 가져오기 - 간소화된 버전"""
-        try:
-            # 기본 정보만 설정
-            self.video_info = {
-                'title': f'Video {video_id}',
-                'channel': '정보 없음',
-                'duration': 0,
-                'video_id': video_id
-            }
-        except Exception as e:
-            self.video_info = {'title': '정보 없음', 'channel': '정보 없음', 'video_id': video_id}
+        """기본 비디오 정보 설정"""
+        self.video_info = {
+            'title': f'YouTube Video {video_id}',
+            'channel': 'Unknown',
+            'duration': 0,
+            'video_id': video_id
+        }
     
     def extract_transcript(self, video_id):
         """자막 추출"""
         try:
-            # 자막 목록 가져오기
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-            
-            # 사용 가능한 자막 우선순위
-            language_priorities = ['ko', 'en', 'en-US', 'en-GB']
-            
-            transcript = None
-            
-            # 우선순위에 따라 자막 찾기
-            for lang_code in language_priorities:
+            # 한국어 자막 시도
+            try:
+                transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
+            except:
+                # 영어 자막 시도
                 try:
-                    transcript = transcript_list.find_transcript([lang_code])
-                    if transcript:
-                        break
+                    transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
                 except:
-                    continue
+                    # 사용 가능한 모든 자막 시도
+                    transcript = YouTubeTranscriptApi.get_transcript(video_id)
             
-            # 위의 방법이 실패하면 첫 번째 사용 가능한 자막 사용
-            if not transcript:
-                try:
-                    transcript = transcript_list.find_transcript(['en'])
-                except:
-                    try:
-                        # 마지막 시도: 사용 가능한 첫 번째 자막
-                        available_transcripts = list(transcript_list)
-                        if available_transcripts:
-                            transcript = available_transcripts[0]
-                    except:
-                        pass
-            
-            # 자막 데이터 가져오기
-            if transcript:
-                try:
-                    self.transcript_data = transcript.fetch()
-                    if self.transcript_data and len(self.transcript_data) > 0:
-                        return True
-                except Exception as e:
-                    self.error_details = f"자막 데이터 가져오기 실패: {str(e)}"
-            
-            return False
+            self.transcript_data = transcript
+            return True if transcript else False
             
         except Exception as e:
-            self.error_details = f"자막 목록 가져오기 실패: {str(e)}"
+            self.error_details = str(e)
             return False
     
     def format_transcript(self):
-        """자막을 읽기 쉬운 텍스트로 포맷팅"""
+        """자막 포맷팅"""
         if not self.transcript_data:
             return ""
         
-        formatted_lines = []
-        
+        texts = []
         for entry in self.transcript_data:
-            try:
-                text = entry['text'].strip()
-                if text and text not in ['[음악]', '[Music]', '[Applause]', '[박수]']:
-                    # 줄바꿈 문자 제거 및 정리
-                    text = re.sub(r'\n+', ' ', text)
-                    text = re.sub(r'\s+', ' ', text)
-                    formatted_lines.append(text)
-            except:
-                continue
+            text = entry.get('text', '').strip()
+            if text:
+                texts.append(text)
         
-        # 중복 제거 및 연결
-        result_text = ' '.join(formatted_lines)
-        
-        # 문장 단위로 정리
-        sentences = re.split(r'[.!?]\s+', result_text)
-        formatted_sentences = []
-        
-        for sentence in sentences:
-            sentence = sentence.strip()
-            if sentence and len(sentence) > 3:
-                if not sentence.endswith(('.', '!', '?')):
-                    sentence += '.'
-                formatted_sentences.append(sentence)
-        
-        self.formatted_text = '\n\n'.join(formatted_sentences)
+        self.formatted_text = ' '.join(texts)
         return self.formatted_text
     
     def process_youtube_url(self, url):
         """메인 처리 함수"""
         try:
-            # 1. 비디오 ID 추출
             video_id = self.extract_video_id(url)
             if not video_id:
                 self.error_details = "올바른 유튜브 URL이 아닙니다"
                 return False
             
-            # 2. 비디오 정보 가져오기
             self.get_video_info(video_id)
             
-            # 3. 자막 추출
             if self.extract_transcript(video_id):
-                # 4. 자막 포맷팅
                 self.format_transcript()
                 return True
             else:
                 return False
                 
         except Exception as e:
-            self.error_details = f"처리 중 오류: {str(e)}"
+            self.error_details = str(e)
             return False
 
 
